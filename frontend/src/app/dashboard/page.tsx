@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CASE_LIST, CASES_DATABASE } from '../../lib/casesData';
 import { CaseListItem, CaseProcessingResult, GraphNode } from '../../types';
+import { fetchAllCases, fetchCaseDetail, fetchAggregateGraph, ApiCaseSummary } from '../../lib/api';
 import { DetroitCanvas } from '../../components/DetroitCanvas';
 import { CyberLifeDossier } from '../../components/CyberLifeDossier';
 import { DetectiveHUD } from '../../components/DetectiveHUD';
@@ -12,7 +13,7 @@ import { StatusDiode } from '../../components/StatusDiode';
 import Link from 'next/link';
 import { 
   Search, Maximize2, ArrowLeft, Check, Activity, ShieldAlert,
-  ChevronRight, ArrowUpRight
+  ChevronRight, ArrowUpRight, RefreshCw, Network
 } from 'lucide-react';
 
 interface RecommendedAction {
@@ -23,6 +24,60 @@ interface RecommendedAction {
 }
 
 const DEFAULT_ACTIONS: Record<string, RecommendedAction[]> = {
+  "CASE_CBI_RC0782026E0004": [
+    {
+      id: "act_cbi_1",
+      text: "Execute Section 94 BNSS search warrant at 405, Minar Apartments, Basheer Bagh, Hyderabad",
+      category: "STATUTORY SEARCH",
+      priority: "CRITICAL"
+    },
+    {
+      id: "act_cbi_2",
+      text: "Issue Section 106 BNSS debit freeze across State Bank of India & Canara Bank consortium escrow lines",
+      category: "FINANCIAL FREEZE",
+      priority: "CRITICAL"
+    },
+    {
+      id: "act_cbi_3",
+      text: "Summon statutory stock verification auditors for fabricated sugar godown certificates",
+      category: "FORENSIC AUDIT",
+      priority: "HIGH"
+    },
+    {
+      id: "act_cbi_4",
+      text: "Coordinate cross-case seizure on Indirapuram Hawala vault linking Case 112/2026",
+      category: "CROSS-CASE LINK",
+      priority: "HIGH"
+    }
+  ],
+  "CASE_CBI_RC0782026E0001": [
+    {
+      id: "act_cbi1_1",
+      text: "Summon prime accused Mr. Ishwaral Shankarlal Jain under Section 173 BNSS",
+      category: "INTERROGATION",
+      priority: "CRITICAL"
+    },
+    {
+      id: "act_cbi1_2",
+      text: "Attach hypothecated factory plant and movable assets under Section 107 BNSS",
+      category: "ASSET ATTACHMENT",
+      priority: "CRITICAL"
+    }
+  ],
+  "CASE_CBI_RC0782026E0003": [
+    {
+      id: "act_cbi3_1",
+      text: "Forensic audit on export invoices sanctioned by accused Mr. Sandeep R Vedant",
+      category: "FINANCIAL AUDIT",
+      priority: "CRITICAL"
+    },
+    {
+      id: "act_cbi3_2",
+      text: "Issue Look Out Circular (LOC) across major international airports",
+      category: "BORDER SECURITY",
+      priority: "HIGH"
+    }
+  ],
   "CASE_2026_NOIDA_112": [
     {
       id: "act_1",
@@ -66,6 +121,23 @@ const DEFAULT_ACTIONS: Record<string, RecommendedAction[]> = {
 };
 
 const CASE_TIMELINES: Record<string, { time: string; event: string; status: string }[]> = {
+  "CASE_CBI_RC0782026E0004": [
+    { time: "20/07 10:30", event: "CBI REGISTRATION (BNSS 173)", status: "VERIFIED" },
+    { time: "20/07 11:15", event: "SANCTION AUDIT REVIEW", status: "VERIFIED" },
+    { time: "20/07 12:45", event: "EMPTY GODOWN INSPECTION", status: "IPC 467/471" },
+    { time: "20/07 14:00", event: "CONSORTIUM LOAN FREEZE", status: "₹84.50 CR" },
+    { time: "20/07 16:30", event: "HAWALA VAULT CORRELATION", status: "CROSS-CASE" }
+  ],
+  "CASE_CBI_RC0782026E0001": [
+    { time: "15/05 09:00", event: "CBI ARCHIVE CASE LOGGED", status: "VERIFIED" },
+    { time: "15/05 11:30", event: "UNLIMITED-OCR EXTRACTED", status: "27 NODES" },
+    { time: "15/05 14:00", event: "PROMOTER IDENTIFIED", status: "CENTRAL BROKER" }
+  ],
+  "CASE_CBI_RC0782026E0003": [
+    { time: "12/06 10:00", event: "CBI ARCHIVE CASE LOGGED", status: "VERIFIED" },
+    { time: "12/06 12:00", event: "UNLIMITED-OCR EXTRACTED", status: "22 NODES" },
+    { time: "12/06 15:30", event: "EXPORT CREDIT FRAUD", status: "VERIFIED" }
+  ],
   "CASE_2026_NOIDA_112": [
     { time: "10/02 14:15", event: "COERCIVE CALL INITIATED", status: "VERIFIED" },
     { time: "10/02 14:45", event: "SKYPE DIGITAL ARREST", status: "VERIFIED" },
@@ -82,56 +154,135 @@ const CASE_TIMELINES: Record<string, { time: string; event: string; status: stri
 };
 
 export default function InvestigatorConsole() {
+  const [casesList, setCasesList] = useState<CaseListItem[]>(CASE_LIST);
   const [selectedCaseId, setSelectedCaseId] = useState<string>(CASE_LIST[0].case_id);
+  const [currentCase, setCurrentCase] = useState<CaseProcessingResult>(
+    CASES_DATABASE[CASE_LIST[0].case_id] || CASES_DATABASE["CASE_2026_NOIDA_112"]
+  );
+  const [isLiveApi, setIsLiveApi] = useState<boolean>(false);
+  const [isLoadingCase, setIsLoadingCase] = useState<boolean>(false);
   const [fullScreenGraph, setFullScreenGraph] = useState<boolean>(false);
   const [showGraphLegend, setShowGraphLegend] = useState<boolean>(false);
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(() => {
-    const initialCase = CASES_DATABASE[CASE_LIST[0].case_id] || CASES_DATABASE["CASE_2026_NOIDA_112"];
-    return initialCase.graph.nodes.find(n => n.is_broker) || initialCase.graph.nodes[0] || null;
-  });
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [completedActions, setCompletedActions] = useState<Record<string, boolean>>({
-    "act_2": true, // pre-checked example
+    "act_cbi_2": true,
   });
-
   const [expandEntities, setExpandEntities] = useState<boolean>(false);
+
+  // Aggregate Master Syndicate Graph state
+  const [aggregateMode, setAggregateMode] = useState<boolean>(false);
+  const [aggregateGraphData, setAggregateGraphData] = useState<any>(null);
 
   // Modals state
   const [statsOpen, setStatsOpen] = useState<boolean>(false);
   const [patternsOpen, setPatternsOpen] = useState<boolean>(false);
   const [certOpen, setCertOpen] = useState<boolean>(false);
 
-  // Active case data
-  const currentCase: CaseProcessingResult = CASES_DATABASE[selectedCaseId] || CASES_DATABASE["CASE_2026_NOIDA_112"];
+  // 1. Fetch live cases on mount
+  useEffect(() => {
+    async function loadLiveCases() {
+      const apiCases = await fetchAllCases();
+      if (apiCases && apiCases.length > 0) {
+        setIsLiveApi(true);
+        const mappedList: CaseListItem[] = apiCases.map((c: ApiCaseSummary) => {
+          const isCbi = c.case_id.includes('CBI');
+          return {
+            case_id: c.case_id,
+            fir_number: c.fir_number,
+            title: isCbi 
+              ? `CBI Bank Consortium Fraud (${c.fir_number})` 
+              : (c.fir_number === '112/2026' ? 'CBI Skype Digital Arrest & FD Extortion' : `FIR ${c.fir_number} Cyber Fraud`),
+            police_station: c.police_station,
+            date_time: c.date_time || '2026-07-20 10:30',
+            threat_level: isCbi ? 'CRITICAL' : 'HIGH',
+            accused_count: c.node_count || (isCbi ? 12 : 4),
+            bns_sections: isCbi ? 'IPC 120-B, 409, 420, 467, 468, 471 & PC Act 13(2)' : 'BNS 318(4), 319(2) & 66D IT Act',
+            defrauded_amount: isCbi ? '₹84,50,00,000' : '₹14,50,000',
+            central_broker: c.broker_name || 'Mr. Narayanam Nageswara Rao'
+          };
+        });
+        setCasesList(mappedList);
+      }
+    }
+    loadLiveCases();
+  }, []);
 
-  // Filtered cases
-  const filteredCases = CASE_LIST.filter(c => 
+  // 2. Fetch live case details and graph when selectedCaseId changes
+  useEffect(() => {
+    let isCancelled = false;
+    async function loadCaseDetail() {
+      setIsLoadingCase(true);
+      const detail = await fetchCaseDetail(selectedCaseId);
+      if (!isCancelled && detail) {
+        setCurrentCase(detail as any);
+        if (detail.graph && detail.graph.nodes && detail.graph.nodes.length > 0) {
+          const broker = detail.graph.nodes.find((n: any) => n.is_broker) || detail.graph.nodes[0];
+          setSelectedNode(broker);
+        }
+      } else if (!isCancelled && CASES_DATABASE[selectedCaseId]) {
+        setCurrentCase(CASES_DATABASE[selectedCaseId]);
+        const initialNodes = CASES_DATABASE[selectedCaseId].graph.nodes;
+        setSelectedNode(initialNodes.find((n: any) => n.is_broker) || initialNodes[0] || null);
+      }
+      setIsLoadingCase(false);
+    }
+    loadCaseDetail();
+    return () => { isCancelled = true; };
+  }, [selectedCaseId]);
+
+  // Toggle Master Aggregate Syndicate Graph
+  const handleToggleAggregate = async () => {
+    if (!aggregateMode) {
+      setIsLoadingCase(true);
+      const agg = await fetchAggregateGraph();
+      if (agg) {
+        setAggregateGraphData(agg);
+        setAggregateMode(true);
+        setFullScreenGraph(true);
+        if (agg.nodes && agg.nodes.length > 0) {
+          setSelectedNode(agg.nodes[0]);
+        }
+      }
+      setIsLoadingCase(false);
+    } else {
+      setAggregateMode(false);
+    }
+  };
+
+  // Filtered cases list
+  const filteredCases = casesList.filter(c => 
     c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.fir_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.police_station.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Active nodes & edges to render (either single case or aggregate master network)
+  const graphNodesToRender = aggregateMode && aggregateGraphData 
+    ? aggregateGraphData.nodes 
+    : (currentCase.graph?.nodes || []);
+
+  const graphEdgesToRender = aggregateMode && aggregateGraphData 
+    ? aggregateGraphData.edges 
+    : (currentCase.graph?.edges || []);
+
   // Rank entities by Betweenness Centrality score for the Priority Queue Strip
-  const rankedEntities = [...currentCase.graph.nodes]
-    .filter(n => n.category === 'PERSON' || n.category === 'PHONE' || n.category === 'BANK_ACCOUNT')
-    .sort((a, b) => b.betweenness_score - a.betweenness_score);
+  const rankedEntities = [...graphNodesToRender]
+    .filter(n => n.category === 'PERSON' || n.category === 'PHONE' || n.category === 'BANK_ACCOUNT' || n.category === 'EVIDENCE')
+    .sort((a, b) => (b.betweenness_score || 0) - (a.betweenness_score || 0));
 
   const displayedEntities = expandEntities ? rankedEntities : rankedEntities.slice(0, 4);
   const remainingCount = rankedEntities.length - 4;
 
   // Recommended actions for current case
-  const actionsList = DEFAULT_ACTIONS[selectedCaseId] || DEFAULT_ACTIONS["CASE_2026_NOIDA_112"];
+  const actionsList = DEFAULT_ACTIONS[selectedCaseId] || DEFAULT_ACTIONS["CASE_CBI_RC0782026E0004"] || DEFAULT_ACTIONS["CASE_2026_NOIDA_112"];
 
   // Timeline events for current case
-  const timelineEvents = CASE_TIMELINES[selectedCaseId] || CASE_TIMELINES["CASE_2026_NOIDA_112"];
+  const timelineEvents = CASE_TIMELINES[selectedCaseId] || CASE_TIMELINES["CASE_CBI_RC0782026E0004"] || CASE_TIMELINES["CASE_2026_NOIDA_112"];
 
   const handleSelectCase = (caseId: string) => {
+    setAggregateMode(false);
     setSelectedCaseId(caseId);
-    const cData = CASES_DATABASE[caseId];
-    if (cData && cData.graph.nodes.length > 0) {
-      const broker = cData.graph.nodes.find(n => n.is_broker) || cData.graph.nodes[0];
-      setSelectedNode(broker);
-    }
   };
 
   const handleOpenGraph = (caseId: string) => {

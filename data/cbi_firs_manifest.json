@@ -1,0 +1,38 @@
+[
+  {
+    "case_id": "CBI_RC0782026E0004",
+    "case_number": "RC0782026E0004",
+    "location": "Bangalore, Karnataka",
+    "registration_date": "20/07/2026",
+    "declared_size": "[6 MB]  [PDF]",
+    "size_mb": 6.0,
+    "file_path": "E:\\NyayaGraph\\data\\cbi_firs\\RC0782026E0004_Bangalore__Karnataka_6MB.pdf",
+    "filename": "RC0782026E0004_Bangalore__Karnataka_6MB.pdf",
+    "sha256": "0905a831f3f1ee134b374944df51153dfa069142c6cbfe7a518482146f8b8510",
+    "source_url": "https://cbi.gov.in/download/L2Fzc2V0cy9maWxlcy9maXIvNzk2NDA3OTgzUkMwNzgyMDI2RTAwMDQucGRm"
+  },
+  {
+    "case_id": "CBI_RC0782026E0003",
+    "case_number": "RC0782026E0003",
+    "location": "Bangalore, Karnataka",
+    "registration_date": "29/06/2026",
+    "declared_size": "[6.3 MB]  [PDF]",
+    "size_mb": 6.3,
+    "file_path": "E:\\NyayaGraph\\data\\cbi_firs\\RC0782026E0003_Bangalore__Karnataka_6MB.pdf",
+    "filename": "RC0782026E0003_Bangalore__Karnataka_6MB.pdf",
+    "sha256": "883f6c875cba65ab6faf9698d16d327f1173b21799defe360a9ee045814ae4b2",
+    "source_url": "https://cbi.gov.in/download/L2Fzc2V0cy9maWxlcy9maXIvMTA3MjUzMTc5N1JDMDc4MjAyNkUwMDAzLnBkZg=="
+  },
+  {
+    "case_id": "CBI_RC0782026E0001",
+    "case_number": "RC0782026E0001",
+    "location": "Bangalore, Karnataka",
+    "registration_date": "24/06/2026",
+    "declared_size": "[4.5 MB]  [PDF]",
+    "size_mb": 4.5,
+    "file_path": "E:\\NyayaGraph\\data\\cbi_firs\\RC0782026E0001_Bangalore__Karnataka_4MB.pdf",
+    "filename": "RC0782026E0001_Bangalore__Karnataka_4MB.pdf",
+    "sha256": "e08f44f030c829cba071643b18b18fc4c6980f79c1c1c2c8fa9e56925fa4a616",
+    "source_url": "https://cbi.gov.in/download/L2Fzc2V0cy9maWxlcy9maXIvMTI0NDM4NjM2MlJDMDc4MjAyNkUwMDAxLnBkZg=="
+  }
+]

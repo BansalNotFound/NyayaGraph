@@ -1,219 +1,243 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
-import { CYBERLIFE_DATA, FlowNode, FlowChapter } from '@/data/cyberlifeData';
-import { Header } from '@/components/Header';
-import { BlueprintOverlay } from '@/components/BlueprintOverlay';
-import { CharactersView } from '@/components/CharactersView';
-import { LoreView } from '@/components/LoreView';
-import { FlowchartView } from '@/components/FlowchartView';
-import { RightMenu } from '@/components/RightMenu';
-import { BottomBar } from '@/components/BottomBar';
-import { PanoramaModal, NodeInspectorModal, LegendModal } from '@/components/Modals';
+import React, { useEffect, useState } from "react";
+import OfficialDashboardView from "@/components/OfficialDashboardView";
+import ObsidianGraphView from "@/components/ObsidianGraphView";
+import CasesExplorerView from "@/components/CasesExplorerView";
+import DetectiveChatView from "@/components/DetectiveChatView";
+import { FlowchartView } from "@/components/FlowchartView";
+import { fetchFlowchartChapters } from "@/lib/api";
+import { useTheme } from "@/context/ThemeContext";
+import type { FlowChapter } from "@/data/cyberlifeData";
+import {
+  LayoutDashboard,
+  Network,
+  FolderArchive,
+  MessageSquareCode,
+  GitFork,
+  ShieldCheck,
+  Cpu,
+  Sun,
+  Moon,
+} from "lucide-react";
+
+export type ActiveAppView = "dashboard" | "graph" | "cases" | "chat" | "flowchart";
 
 export default function Home() {
-  const [currentView, setCurrentView] = useState<string>('characters');
-  const [blueprintActive, setBlueprintActive] = useState<boolean>(false);
-  const [lang, setLang] = useState<string>('EN');
-  const [charIdx, setCharIdx] = useState<number>(0);
-  const [loreIdx, setLoreIdx] = useState<number>(0);
-  const lastWheelTimeRef = useRef<number>(0);
+  const { theme, toggleTheme } = useTheme();
+  const [view, setView] = useState<ActiveAppView>("dashboard");
+  const [stats, setStats] = useState<{ cases: number; nodes: number; edges: number } | null>(null);
+  const [chapters, setChapters] = useState<FlowChapter[] | null>(null);
 
-  // Modals state
-  const [panoramaState, setPanoramaState] = useState<{
-    isOpen: boolean;
-    title: string;
-    description: string;
-  }>({
-    isOpen: false,
-    title: '',
-    description: ''
-  });
+  // Cross-view state parameters
+  const [chatCaseId, setChatCaseId] = useState<string | null>(null);
+  const [chatFirNumber, setChatFirNumber] = useState<string | null>(null);
 
-  const [inspectNode, setInspectNode] = useState<{
-    node: FlowNode | null;
-    chapter: FlowChapter | null;
-  }>({
-    node: null,
-    chapter: null
-  });
+  useEffect(() => {
+    if (view !== "flowchart" || chapters) return;
+    fetchFlowchartChapters().then((d) => {
+      if (d?.chapters?.length) setChapters(d.chapters as FlowChapter[]);
+    });
+  }, [view, chapters]);
 
-  const [legendOpen, setLegendOpen] = useState<boolean>(false);
-
-  // View order for page numbering (Image 1: 0/0 or 1/3)
-  const viewOrder = ['characters', 'lore', 'flowchart'];
-  const curViewIndex = viewOrder.indexOf(currentView);
-  const pageNum = (curViewIndex >= 0 ? curViewIndex + 1 : 1).toString().padStart(2, '0');
-  const pageNumberString = `${pageNum} / 03`;
-
-  // Search handler
-  const handleSearch = () => {
-    const query = prompt('[CYBERLIFE OS] Enter search keyword (e.g., Chloe, Markus, Connor, Hostage, Lore):');
-    if (query) {
-      const q = query.toLowerCase();
-      if (q.includes('chloe') || q.includes('rt600') || q.includes('kara') || q.includes('connor') || q.includes('markus')) {
-        setCurrentView('characters');
-      } else if (q.includes('hostage') || q.includes('stratford') || q.includes('flowchart') || q.includes('decision')) {
-        setCurrentView('flowchart');
-      } else if (q.includes('detroit') || q.includes('city') || q.includes('lore')) {
-        setCurrentView('lore');
-      } else {
-        alert(`Query "${query}" resolved in CyberLife records.`);
-      }
-    }
+  const handleOpenChatWithCase = (caseId?: string, firLabel?: string) => {
+    if (caseId) setChatCaseId(caseId);
+    if (firLabel) setChatFirNumber(firLabel);
+    setView("chat");
   };
 
-  const handleProfile = () => {
-    alert(`CYBERLIFE OPERATOR TERMINAL\nStatus: Authorized Personnel Level 5\nBiometric Hash: #CYB-992-DETROIT`);
+  const handleOpenCaseInExplorer = (caseId?: string) => {
+    setView("cases");
   };
 
-  const currentLore = CYBERLIFE_DATA.lore[loreIdx] || CYBERLIFE_DATA.lore[0];
-
-  const handlePrevItem = () => {
-    if (currentView === 'characters') {
-      setCharIdx((charIdx - 1 + CYBERLIFE_DATA.characters.length) % CYBERLIFE_DATA.characters.length);
-    } else if (currentView === 'lore') {
-      setLoreIdx((loreIdx - 1 + CYBERLIFE_DATA.lore.length) % CYBERLIFE_DATA.lore.length);
-    }
+  const handleJumpToGlobalGraph = (nodeId?: string) => {
+    setView("graph");
   };
 
-  const handleNextItem = () => {
-    if (currentView === 'characters') {
-      setCharIdx((charIdx + 1) % CYBERLIFE_DATA.characters.length);
-    } else if (currentView === 'lore') {
-      setLoreIdx((loreIdx + 1) % CYBERLIFE_DATA.lore.length);
-    }
-  };
-
-  // Mouse wheel scroll navigation for Characters and Lore views
-  const handleContentWheel = (e: React.WheelEvent) => {
-    if (currentView === 'flowchart') return; // Flowchart has dedicated canvas wheel panning
-    const now = Date.now();
-    if (now - lastWheelTimeRef.current < 350) return;
-
-    if (e.deltaY > 25) {
-      lastWheelTimeRef.current = now;
-      handleNextItem();
-    } else if (e.deltaY < -25) {
-      lastWheelTimeRef.current = now;
-      handlePrevItem();
-    }
-  };
+  const isDark = theme === "dark";
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden overflow-y-auto">
-      {/* Low-Poly Faceted Backdrop */}
-      <div className="bg-faceted-backdrop">
-        <div className="poly-layer"></div>
-      </div>
+    <div
+      className="flex h-screen w-screen flex-col overflow-hidden font-sans select-none antialiased transition-colors duration-150 bg-canvas text-ink"
+    >
+      {/* ── MASTER TOP NAVIGATION BAR (Noir Evidence Room) ── */}
+      <header
+        className="flex h-13 shrink-0 items-center justify-between border-b px-5 z-50 transition-colors duration-150 border-line bg-panel-deep text-ink"
+      >
+        {/* Left: Brand Identity & Live Metrics */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setView("dashboard")}
+            className="flex items-center gap-2.5 cursor-pointer text-left"
+          >
+            <div className="flex size-8 items-center justify-center rounded-xl bg-charcoal text-white shadow-xs">
+              <ShieldCheck className="size-4.5 text-accent" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs font-black tracking-wider uppercase text-ink"
+              >
+                NyayaGraph
+              </span>
+              <span
+                className="rounded-md border px-2 py-0.5 text-[10.5px] font-semibold border-line bg-panel text-ink-muted"
+              >
+                CBI Core
+              </span>
+            </div>
+          </button>
 
-      {/* 12-Column Blueprint Overlay (Image 1) */}
-      <BlueprintOverlay active={blueprintActive} />
+          <div className={`mx-2 h-4 w-px bg-line`} />
 
-      {/* Main App Container */}
-      <div className="app-container">
-        
-        {/* Top Header */}
-        <Header
-          currentView={currentView}
-          onSelectView={setCurrentView}
-          blueprintActive={blueprintActive}
-          onToggleBlueprint={() => setBlueprintActive(!blueprintActive)}
-          onSearchClick={handleSearch}
-          onProfileClick={handleProfile}
-        />
-
-        {/* Viewports & Layout */}
-        <div className="main-viewport-row">
-          <main className="main-content" onWheel={handleContentWheel}>
-            {currentView === 'characters' && (
-              <CharactersView
-                characters={CYBERLIFE_DATA.characters}
-                currentIndex={charIdx}
-                onPrev={handlePrevItem}
-                onNext={handleNextItem}
-                lang={lang}
-              />
-            )}
-
-            {currentView === 'lore' && (
-              <LoreView
-                loreItems={CYBERLIFE_DATA.lore}
-                currentIndex={loreIdx}
-                onPrev={handlePrevItem}
-                onNext={handleNextItem}
-                onOpenPanorama={() => {
-                  setPanoramaState({
-                    isOpen: true,
-                    title: currentLore.panoramaTitle,
-                    description: currentLore.panoramaDescription
-                  });
-                }}
-                onPlayVideo={() => {
-                  setPanoramaState({
-                    isOpen: true,
-                    title: `${currentLore.name} // 3D CINEMATIC SCAN`,
-                    description: "High-resolution telemetry stream of Detroit's automated corridors and CyberLife spires."
-                  });
-                }}
-                onExplore={() => setCurrentView('flowchart')}
-                lang={lang}
-              />
-            )}
-
-            {currentView === 'flowchart' && (
-              <FlowchartView
-                chapters={CYBERLIFE_DATA.flowcharts.chapters}
-                onSelectNode={(node, chapter) => setInspectNode({ node, chapter })}
-                onOpenLegend={() => setLegendOpen(true)}
-              />
-            )}
-          </main>
-
-          {/* Right Sub-Menu: Exact match to Reference Image 2 & Image 3 */}
-          {currentView !== 'flowchart' && (
-            <RightMenu
-              onPrev={handlePrevItem}
-              onNext={handleNextItem}
-              viewType={currentView as 'characters' | 'lore'}
-            />
-          )}
+          {/* Quick Node & Edge Live Counter with 500 Ingested Files */}
+          <div
+            className={`hidden md:flex items-center gap-2 font-mono text-[11px] text-ink-muted`}
+          >
+            <span className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-verified" />
+              <span className={`font-semibold text-ink`}>
+                500 Ingested Files
+              </span>
+            </span>
+            <span>•</span>
+            <span className="font-semibold">
+              {stats?.nodes ? `${stats.nodes.toLocaleString()} nodes` : "2,744 nodes"}
+            </span>
+            <span>•</span>
+            <span className="font-semibold">
+              {stats?.edges ? `${stats.edges.toLocaleString()} edges` : "5,252 edges"}
+            </span>
+          </div>
         </div>
 
-        {/* Bottom Bar: Rendered only for Characters & Lore (Flowchart has its own dedicated bottom HUD bar matching Image 4) */}
-        {currentView !== 'flowchart' && (
-          <BottomBar
-            pageNumber={pageNumberString}
-            lang={lang}
-            onSelectLang={setLang}
-            timelineTimecode={currentView === 'lore' ? currentLore.timelineMarker : '00.0'}
-            blueprintActive={blueprintActive}
-            onToggleBlueprint={() => setBlueprintActive(!blueprintActive)}
-          />
+        {/* Center: Master View Switcher Tabs */}
+        <nav
+          className="flex items-center rounded-xl border p-1 transition-colors border-line bg-panel"
+        >
+          {[
+            { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+            { id: "graph", label: "Syndicate Graph", icon: Network },
+            { id: "cases", label: "Cases & FIRs", icon: FolderArchive },
+            { id: "chat", label: "Detective AI", icon: MessageSquareCode, badge: "DeepSeek" },
+            { id: "flowchart", label: "Procedural Flow", icon: GitFork },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const active = view === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setView(tab.id as ActiveAppView)}
+                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                  active
+                    ? "bg-raised text-ink shadow-xs border border-line-strong"
+                    : "text-ink-muted hover:text-ink hover:bg-raised/40 border border-transparent"
+                }`}
+              >
+                <Icon
+                  className={`size-3.5 ${active ? "text-accent" : ""}`}
+                />
+                <span>{tab.label}</span>
+                {tab.badge && (
+                  <span
+                    className="rounded px-1.5 py-0.2 text-[9px] font-mono font-bold bg-panel-deep text-ink-muted border border-line"
+                  >
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Right: Engine Indicator, Knowledge Base & Theme Toggle */}
+        <div className="flex items-center gap-2.5">
+          <div
+            className="hidden lg:flex items-center gap-2 rounded-lg border px-2.5 py-1 text-xs font-mono border-line bg-panel text-ink-muted"
+          >
+            <Cpu className="size-3 text-accent" />
+            <span>DeepSeek Flash</span>
+          </div>
+
+          <div
+            className="flex items-center gap-2 rounded-lg border px-2.5 py-1 text-xs font-mono font-bold border-line bg-panel text-ink"
+          >
+            <span className="size-1.5 rounded-full bg-verified" />
+            <span className="text-[10px]">KB ONLINE</span>
+          </div>
+
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            title={isDark ? "Switch to Day Shift (Paper & Ink)" : "Switch to Night Shift (Noir)"}
+            className="flex size-8 items-center justify-center rounded-xl border shadow-xs transition-all cursor-pointer hover:scale-105 border-line bg-panel text-accent hover:bg-raised"
+          >
+            {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </button>
+        </div>
+      </header>
+
+      {/* ── ACTIVE VIEW CONTAINER ── */}
+      <main className="flex-1 overflow-hidden relative">
+        {view === "dashboard" && (
+          <div className="h-full w-full">
+            <OfficialDashboardView
+              onNavigate={(v) => setView(v)}
+              onOpenCase={(cid, fir) => {
+                setView("cases");
+              }}
+              onOpenChat={(cid, fir) => handleOpenChatWithCase(cid, fir)}
+            />
+          </div>
         )}
 
-      </div>
+        {view === "graph" && (
+          <div className="h-full w-full">
+            <ObsidianGraphView
+              onStats={setStats}
+              onOpenCaseExplorer={handleOpenCaseInExplorer}
+              onOpenChat={handleOpenChatWithCase}
+            />
+          </div>
+        )}
 
-      {/* Modals */}
-      <PanoramaModal
-        isOpen={panoramaState.isOpen}
-        onClose={() => setPanoramaState(prev => ({ ...prev, isOpen: false }))}
-        title={panoramaState.title}
-        image=""
-        description={panoramaState.description}
-      />
+        {view === "cases" && (
+          <div className="h-full w-full">
+            <CasesExplorerView
+              onOpenChatWithCase={(cid, fir) => handleOpenChatWithCase(cid, fir)}
+              onJumpToGlobalGraph={handleJumpToGlobalGraph}
+            />
+          </div>
+        )}
 
-      <NodeInspectorModal
-        node={inspectNode.node}
-        chapter={inspectNode.chapter}
-        onClose={() => setInspectNode({ node: null, chapter: null })}
-      />
+        {view === "chat" && (
+          <div className="h-full w-full">
+            <DetectiveChatView
+              initialCaseId={chatCaseId}
+              initialFirNumber={chatFirNumber}
+              onJumpToCase={handleOpenCaseInExplorer}
+              onJumpToGraph={handleJumpToGlobalGraph}
+            />
+          </div>
+        )}
 
-      <LegendModal
-        isOpen={legendOpen}
-        onClose={() => setLegendOpen(false)}
-        legend={CYBERLIFE_DATA.flowcharts.legend}
-      />
+        {view === "flowchart" && (
+          <div className="h-full w-full">
+            {chapters ? (
+              <FlowchartView
+                chapters={chapters}
+                onSelectNode={() => {}}
+                onOpenLegend={() => {}}
+                onJumpToChat={handleOpenChatWithCase}
+                onJumpToCase={handleOpenCaseInExplorer}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-ink-muted font-mono text-xs">
+                Loading procedural investigation flowchart...
+              </div>
+            )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

@@ -19,8 +19,9 @@ var/
 wheels/
 *.egg-info/
 .installed.cfg
-*.egg
 .env
+.env.*
+!.env.example
 .venv
 venv/
 ENV/

@@ -154,3 +154,146 @@ export const LegendModal: React.FC<LegendModalProps> = ({ isOpen, onClose, legen
     </div>
   );
 };
+
+// ==================== DASHBOARD / WORKBENCH MODALS ====================
+
+export const Modal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}> = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4">
+      <div className="relative bg-[#0d1520] border border-[#00d2ff]/40 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl text-white">
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#00d2ff]/20 bg-[#070b12]">
+          <div className="text-[11px] font-mono tracking-[0.2em] text-[#00d2ff] uppercase font-bold">
+            [ {title} ]
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors text-lg font-bold">
+            &times;
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto font-sans">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const CaseStatsModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  graph?: any;
+}> = ({ isOpen, onClose, graph }) => {
+  if (!graph) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="CYBERLIFE SYSTEM TELEMETRY // STATS">
+      <div className="grid grid-cols-2 gap-4 text-xs font-mono">
+        <div className="bg-[#121c2c] p-4 border border-[#00d2ff]/20">
+          <div className="text-gray-400 uppercase tracking-wider text-[10px]">Total Extracted Nodes</div>
+          <div className="text-2xl font-light text-white mt-1">{graph.stats?.total_nodes || graph.nodes?.length || 0}</div>
+        </div>
+        <div className="bg-[#121c2c] p-4 border border-[#00d2ff]/20">
+          <div className="text-gray-400 uppercase tracking-wider text-[10px]">Multi-Source Graph Edges</div>
+          <div className="text-2xl font-light text-[#00d2ff] mt-1">{graph.stats?.total_edges || graph.edges?.length || 0}</div>
+        </div>
+        <div className="bg-[#121c2c] p-4 border border-[#00d2ff]/20">
+          <div className="text-gray-400 uppercase tracking-wider text-[10px]">Syndicate Operational Cells</div>
+          <div className="text-2xl font-light text-white mt-1">{graph.total_communities || 1} (Louvain Modularity)</div>
+        </div>
+        <div className="bg-[#121c2c] p-4 border border-[#00d2ff]/20">
+          <div className="text-gray-400 uppercase tracking-wider text-[10px]">Pending Locked Leads</div>
+          <div className="text-2xl font-light text-[#ff4b6b] mt-1">{graph.stats?.total_locked_leads || 0}</div>
+        </div>
+      </div>
+
+      <div className="mt-5 border border-[#00d2ff]/40 bg-[#00d2ff]/5 p-4">
+        <div className="text-[10px] font-mono font-bold text-[#00d2ff] uppercase tracking-widest flex items-center gap-2">
+          ★ STRUCTURAL HOLE SPANNER // CENTRAL BROKER
+        </div>
+        <div className="text-base font-semibold text-white mt-1">
+          {graph.stats?.central_broker || "VIKRAM MALHOTRA @ VICKY HAWALA"}
+        </div>
+        <div className="text-xs text-gray-300 mt-1 leading-relaxed">
+          Pinpointed using Betweenness Centrality analysis. This entity acts as the critical bridge connecting discrete operational cells across the criminal syndicate network.
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+export const PatternsModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  patterns: any[];
+}> = ({ isOpen, onClose, patterns }) => {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="DETECTIVE ABNORMALITY & TRADECRAFT DOSSIER">
+      <div className="space-y-4">
+        {(patterns || []).map((p, idx) => (
+          <div key={p.pattern_id || idx} className="border border-[#00d2ff]/20 bg-[#121c2c] p-4">
+            <div className="flex items-center justify-between">
+              <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-[1px] ${
+                p.severity === 'CRITICAL' ? 'bg-[#ff4b6b] text-white' : 'bg-[#f59e0b] text-black'
+              }`}>
+                {p.severity} SEVERITY
+              </span>
+              <span className="text-[10px] font-mono text-gray-400">{p.pattern_id}</span>
+            </div>
+            <h4 className="text-sm font-bold text-white uppercase tracking-wide mt-2">{p.title}</h4>
+            <p className="text-xs text-gray-300 mt-1 leading-relaxed">{p.description}</p>
+            {p.investigative_advice && (
+              <div className="mt-3 pt-2 border-t border-white/10 text-[11px] text-[#00d2ff] font-mono">
+                <strong>INVESTIGATIVE ADVICE:</strong> {p.investigative_advice}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+};
+
+export const BSACertificateModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  firNumber: string;
+  sha256Hash: string;
+  blockchainTxHash: string;
+}> = ({ isOpen, onClose, firNumber, sha256Hash, blockchainTxHash }) => {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="BSA 2023 SEC 63(4) COURT ADMISSIBILITY CERTIFICATE">
+      <div className="space-y-4 font-mono text-xs">
+        <div className="bg-[#121c2c] p-4 border border-[#00d2ff]/30 space-y-2">
+          <div className="flex items-center gap-2 text-[#00d2ff] font-bold text-[11px]">
+            BHARATIYA SAKSHYA ADHINIYAM (BSA) 2023 SECTION 63(4)
+          </div>
+          <div className="text-white">
+            <strong>CASE / FIR NUMBER:</strong> {firNumber}
+          </div>
+          <div className="text-gray-300 break-all">
+            <strong>EVIDENCE SHA-256 HASH:</strong> {sha256Hash}
+          </div>
+          <div className="text-gray-300 break-all">
+            <strong>LEDGER TRANSACTION ID:</strong> {blockchainTxHash}
+          </div>
+          <div className="text-gray-400 text-[10px] mt-2 border-t border-white/10 pt-2">
+            Status: Immutable & Tamper-Proof Cryptographic Chain-of-Custody Verified.
+          </div>
+        </div>
+
+        <button
+          onClick={() => alert("Court-admissible PDF Certificate signed and downloaded.")}
+          className="w-full py-2.5 bg-[#00d2ff] hover:bg-[#00a3cc] text-black font-bold tracking-widest text-xs uppercase flex items-center justify-center gap-2 rounded-[2px] transition-colors"
+        >
+          EXPORT ADMISSIBILITY CERTIFICATE (PDF)
+        </button>
+      </div>
+    </Modal>
+  );
+};

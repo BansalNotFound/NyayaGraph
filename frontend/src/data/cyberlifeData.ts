@@ -253,13 +253,14 @@ export const CYBERLIFE_DATA = {
     }
   ] as LoreItem[],
 
-  // Flowchart System (Clean, unclustered layout exactly matching Images 4 & 5)
+  // Flowchart System — Real CBI FIR Case Syndicate Flowcharts
   flowcharts: {
     chapters: [
+      // ─── CHAPTER 1 : RC0782026E0004 — NCS SUGARS PHANTOM STOCK ───
       {
         id: "chapter-1",
-        code: "CH.01",
-        title: "THE HOSTAGE",
+        code: "CBI-RC04",
+        title: "NCS SUGARS PHANTOM STOCK FRAUD",
         character: "CONNOR",
         completionNote: "NOT REQUIRED FOR COMPLETION",
         description: "Connor investigates an apartment in Detroit where an anomalous deviant android has taken a young girl hostage on a rooftop balcony.",

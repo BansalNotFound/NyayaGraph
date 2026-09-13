@@ -117,3 +117,67 @@ class CaseProcessingResult(BaseModel):
     graph: ConnectedCaseGraph
     patterns: List[SuspiciousPattern]
     cross_case_match: Optional[CrossCaseResemblance] = None
+
+
+# ---------- Multi-source evidence ingestion & ledger schemas ----------
+
+class EvidenceItem(BaseModel):
+    evidence_id: str
+    file_name: str
+    file_type: str            # "FIR" | "CDR" | "BANK"
+    sha256_hash: str
+    file_size_bytes: int
+    ingestion_timestamp: str
+    blockchain_tx_hash: Optional[str] = None
+    verification_status: str = "ANCHORED"
+
+
+class BSACertificate(BaseModel):
+    statute: str = "Bharatiya Sakshya Adhiniyam (BSA) 2023 Section 63(4)"
+    fir_number: str
+    police_station: str
+    investigating_officer: str
+    file_hashes: Dict[str, str] = Field(default_factory=dict)
+    root_case_hash: str
+    blockchain_tx_hash: str
+    block_number: int
+    timestamp: str
+    contract_address: Optional[str] = None
+    ledger_mode: str = "sovereign-local"   # "on-chain" | "sovereign-local"
+    legal_declaration: str
+
+
+class EvidenceIngestResponse(BaseModel):
+    case_id: str
+    fir_number: str
+    police_station: str
+    evidence: List[EvidenceItem]
+    root_case_hash: str
+    certificate: BSACertificate
+    entity_preview: List[ExtractedEntity]
+    graph_summary: Dict[str, Any] = Field(default_factory=dict)
+
+
+class CaseSummary(BaseModel):
+    case_id: str
+    fir_number: str
+    police_station: str
+    date_time: str
+    node_count: int
+    edge_count: int
+    broker_name: Optional[str] = None
+    sha256_hash: str
+    blockchain_tx_hash: Optional[str] = None
+
+
+class CaseDetailResponse(CaseProcessingResult):
+    bsa_certificate: Optional[BSACertificate] = None
+
+
+class AggregateGraphResponse(BaseModel):
+    case_ids: List[str]
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]
+    bridge_edge_count: int = 0
+    shared_identifiers: Dict[str, List[str]] = Field(default_factory=dict)
+    stats: Dict[str, Any] = Field(default_factory=dict)

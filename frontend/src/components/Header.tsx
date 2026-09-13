@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { soundFx } from '@/lib/audio';
 
 interface HeaderProps {
@@ -78,6 +79,15 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Tools: Search, Profile, Detroit Temple LED */}
       <div className="cyber-header-tools">
+        <Link 
+          href="/dashboard"
+          className="hud-tool-btn px-2.5 py-1 text-[10px] font-mono font-bold tracking-widest text-[#00d2ff] bg-[#00d2ff]/10 hover:bg-[#00d2ff]/20 border border-[#00d2ff]/40 rounded-sm flex items-center gap-1.5 transition-all text-decoration-none"
+          title="Open NyayaGraph CBI Criminal Profiler & Force Workbench"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff] animate-pulse" />
+          CBI PROFILER
+        </Link>
+
         <button 
           className="hud-tool-btn" 
           onClick={() => {

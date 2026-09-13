@@ -1,205 +1,81 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
+import React, { useState, useEffect } from 'react';
 
 export const ThreeDetroitCity: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [beamAngle, setBeamAngle] = useState(0);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let width = container.clientWidth || 440;
-    let height = container.clientHeight || 440;
-
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a1128, 0.08);
-
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 50);
-    camera.position.set(0, 2.8, 6.5);
-    camera.lookAt(0, 1.2, 0);
-
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: 'high-performance'
-    });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    container.appendChild(renderer.domElement);
-
-    const cityGroup = new THREE.Group();
-    scene.add(cityGroup);
-
-    // --- PROCEDURAL 3D DETROIT MEGACITY SKYSCRAPERS ---
-    const buildingMatDark = new THREE.MeshStandardMaterial({
-      color: 0x111d35,
-      metalness: 0.85,
-      roughness: 0.25
-    });
-
-    const buildingMatGlass = new THREE.MeshStandardMaterial({
-      color: 0x0077b6,
-      emissive: 0x001233,
-      metalness: 0.9,
-      roughness: 0.1
-    });
-
-    // Generate grid of futuristic towers
-    const towerCount = 35;
-    for (let i = 0; i < towerCount; i++) {
-      const h = 1.2 + Math.random() * 3.8;
-      const w = 0.25 + Math.random() * 0.45;
-      const d = 0.25 + Math.random() * 0.45;
-      const geo = new THREE.BoxGeometry(w, h, d);
-      const isGlass = Math.random() > 0.4;
-      const mesh = new THREE.Mesh(geo, isGlass ? buildingMatGlass : buildingMatDark);
-      
-      const angle = (i / towerCount) * Math.PI * 2;
-      const radius = 0.8 + Math.random() * 3.2;
-      mesh.position.set(
-        Math.cos(angle) * radius + (Math.random() - 0.5) * 0.4,
-        h / 2,
-        Math.sin(angle) * radius + (Math.random() - 0.5) * 0.4
-      );
-      cityGroup.add(mesh);
-
-      // Add wireframe edge highlight to give tech HUD look
-      const wireGeo = new THREE.WireframeGeometry(geo);
-      const wireMat = new THREE.LineBasicMaterial({
-        color: isGlass ? 0x00e5ff : 0x00b4d8,
-        transparent: true,
-        opacity: 0.35
-      });
-      const wire = new THREE.LineSegments(wireGeo, wireMat);
-      wire.position.copy(mesh.position);
-      cityGroup.add(wire);
-    }
-
-    // Central Monolithic CyberLife Spire
-    const spireGeo = new THREE.CylinderGeometry(0.08, 0.45, 5.5, 6);
-    const spireMat = new THREE.MeshStandardMaterial({
-      color: 0x00b4d8,
-      emissive: 0x0077b6,
-      emissiveIntensity: 0.6,
-      metalness: 0.95,
-      roughness: 0.1
-    });
-    const spire = new THREE.Mesh(spireGeo, spireMat);
-    spire.position.set(0, 2.75, -0.5);
-    cityGroup.add(spire);
-
-    // Spire beacon light
-    const beaconLight = new THREE.PointLight(0x00e5ff, 4, 8);
-    beaconLight.position.set(0, 5.5, -0.5);
-    cityGroup.add(beaconLight);
-
-    // Glowing ground grid (Lake Erie / City base)
-    const gridHelper = new THREE.GridHelper(12, 24, 0x00e5ff, 0x0077b6);
-    gridHelper.position.y = 0;
-    (gridHelper.material as THREE.Material).transparent = true;
-    (gridHelper.material as THREE.Material).opacity = 0.4;
-    scene.add(gridHelper);
-
-    // Flying Automated Transit Traffic (Curved light trails)
-    const trafficSplines = [
-      new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-3, 1.2, 1),
-        new THREE.Vector3(-1, 1.5, 0),
-        new THREE.Vector3(1, 1.8, -1),
-        new THREE.Vector3(3, 2.2, 0)
-      ]),
-      new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-2, 0.8, -2),
-        new THREE.Vector3(0, 1.1, -1),
-        new THREE.Vector3(2, 1.3, 1),
-        new THREE.Vector3(3, 1.6, 2)
-      ])
-    ];
-
-    trafficSplines.forEach((spline, idx) => {
-      const tubeGeo = new THREE.TubeGeometry(spline, 64, 0.02, 8, false);
-      const tubeMat = new THREE.MeshBasicMaterial({
-        color: idx === 0 ? 0x00e5ff : 0xffb703,
-        transparent: true,
-        opacity: 0.7
-      });
-      const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
-      scene.add(tubeMesh);
-    });
-
-    // Lights
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambient);
-
-    const dirLight = new THREE.DirectionalLight(0x00b4d8, 2.5);
-    dirLight.position.set(5, 8, 5);
-    scene.add(dirLight);
-
-    const rimLight = new THREE.DirectionalLight(0x00e5ff, 2.0);
-    rimLight.position.set(-5, 4, -4);
-    scene.add(rimLight);
-
-    // Mouse Interaction
-    let mouseX = 0;
-    let targetX = 0;
-    const onMouseMove = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      const clientX = e.clientX - rect.left;
-      targetX = (clientX / width) * 2 - 1;
-    };
-    window.addEventListener('mousemove', onMouseMove);
-
-    // Render loop
-    let animId: number;
-    const startTime = performance.now();
-
-    const animate = () => {
-      animId = requestAnimationFrame(animate);
-      const elapsed = (performance.now() - startTime) / 1000;
-
-      mouseX += (targetX - mouseX) * 0.04;
-      cityGroup.rotation.y = elapsed * 0.08 + mouseX * 0.35;
-      beaconLight.intensity = 3 + Math.sin(elapsed * 4) * 1.5;
-
-      renderer.render(scene, camera);
-    };
-
-    animate();
-
-    const onResize = () => {
-      if (!container) return;
-      width = container.clientWidth || 440;
-      height = container.clientHeight || 440;
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
-    };
-    window.addEventListener('resize', onResize);
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('resize', onResize);
-      renderer.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
-    };
+    const anim = setInterval(() => {
+      setBeamAngle(a => (a + 2) % 360);
+    }, 30);
+    return () => clearInterval(anim);
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        position: 'absolute',
-        inset: 0,
-        overflow: 'hidden'
-      }}
-    />
+    <div className="relative w-full h-full min-h-[380px] flex items-center justify-center bg-[#070d18] overflow-hidden">
+      {/* Precision Grid Matrix */}
+      <div 
+        className="absolute inset-0 opacity-15"
+        style={{
+          backgroundImage: 'linear-gradient(to right, #00d2ff 1px, transparent 1px), linear-gradient(to bottom, #00d2ff 1px, transparent 1px)',
+          backgroundSize: '32px 32px'
+        }}
+      />
+
+      {/* Surveillance Radar Scope SVG */}
+      <svg viewBox="0 0 400 400" className="w-[90%] h-[90%] max-w-[380px] max-h-[380px] relative z-10">
+        {/* Outer Bearing Ring */}
+        <circle cx="200" cy="200" r="180" fill="none" stroke="#00d2ff" strokeWidth="1" strokeDasharray="4 3" opacity="0.4" />
+        <circle cx="200" cy="200" r="135" fill="none" stroke="#00d2ff" strokeWidth="0.8" opacity="0.3" />
+        <circle cx="200" cy="200" r="90" fill="none" stroke="#00d2ff" strokeWidth="0.8" opacity="0.3" />
+        <circle cx="200" cy="200" r="45" fill="none" stroke="#00d2ff" strokeWidth="1" opacity="0.5" />
+
+        {/* Crosshair Axes */}
+        <line x1="20" y1="200" x2="380" y2="200" stroke="#00d2ff" strokeWidth="0.8" opacity="0.5" />
+        <line x1="200" y1="20" x2="200" y2="380" stroke="#00d2ff" strokeWidth="0.8" opacity="0.5" />
+
+        {/* Radar Sweeping Beam */}
+        <g transform={`rotate(${beamAngle} 200 200)`}>
+          <line x1="200" y1="200" x2="380" y2="200" stroke="#00d2ff" strokeWidth="2" opacity="0.9" />
+          <path
+            d="M 200 200 L 380 200 A 180 180 0 0 0 355 125 Z"
+            fill="url(#radarSweepGrad)"
+            opacity="0.3"
+          />
+        </g>
+
+        {/* Tactical Waypoint Blips */}
+        <circle cx="270" cy="140" r="4" fill="#00d2ff" className="animate-ping" />
+        <circle cx="270" cy="140" r="2.5" fill="#ffffff" />
+        <text x="280" y="145" fill="#00d2ff" fontSize="9" fontFamily="monospace">SECTOR-04 // DETROIT TOWER</text>
+
+        <circle cx="130" cy="260" r="3" fill="#ff4b6b" />
+        <circle cx="130" cy="260" r="6" fill="none" stroke="#ff4b6b" strokeWidth="1" opacity="0.7" />
+        <text x="60" y="275" fill="#ff4b6b" fontSize="9" fontFamily="monospace">ANOMALY // DEVIANCY SPIKE</text>
+
+        <circle cx="220" cy="290" r="3" fill="#00d2ff" />
+        <text x="230" y="295" fill="#88a0c0" fontSize="8" fontFamily="monospace">CYBERLIFE LOGISTICS NODE</text>
+
+        {/* Gradients */}
+        <defs>
+          <linearGradient id="radarSweepGrad" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="#00d2ff" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#00d2ff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      {/* HUD Telemetry Labels */}
+      <div className="absolute top-4 left-4 font-mono text-[10px] text-[#00d2ff] tracking-widest space-y-0.5">
+        <div>ORBITAL TELEMETRY // SAT-09</div>
+        <div className="text-gray-400">LAT: 42.3314° N  LON: 83.0458° W</div>
+      </div>
+
+      <div className="absolute bottom-4 right-4 font-mono text-[10px] text-gray-400 text-right">
+        <div className="text-[#00d2ff] font-bold">GRID CALIBRATION: OPTIMAL</div>
+        <div>AZIMUTH: {beamAngle}°</div>
+      </div>
+    </div>
   );
 };

@@ -1,20 +1,24 @@
-import json
 import os
+import re
+import json
 from typing import List, Optional, Dict, Any
 from ..models.schemas import CrossCaseResemblance, ExtractedEntity
+from .vector_service import VectorService
+from ..core.database import get_root_data_dir
+
 
 class CrossCaseService:
     """
-    Cross-Case Resemblance Engine & Investigative Guidance Generator.
-    Surfaces historical case matches and connects the current IO with past Investigating Officers.
+    Hybrid Cross-Case Resemblance Engine.
+    Combines hard identifier collisions (phones, vehicles, UPIs, names) from SQLite
+    with semantic modus operandi vector similarity from ChromaDB.
     """
 
     def __init__(self, archive_path: str = None):
         if not archive_path:
-            # Default to data/historical_cases/archive_cases.json
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-            archive_path = os.path.join(base_dir, "data", "historical_cases", "archive_cases.json")
+            archive_path = os.path.join(get_root_data_dir(), "historical_cases", "archive_cases.json")
         self.archive_path = archive_path
+        self._vector_service = VectorService()
         self._load_archive()
 
     def _load_archive(self):
@@ -30,11 +34,17 @@ class CrossCaseService:
         if not self.archive:
             return None
 
-        # Extract active case tokens
-        active_phones = {re.sub(r'\D', '', e.name) for e in entities if e.category.value == "PHONE"}
-        active_vehicles = {e.name.upper().replace(' ', '') for e in entities if e.category.value == "VEHICLE"}
-        active_names = {e.name.lower() for e in entities if e.category.value == "PERSON"}
-        active_upis = {e.name.lower() for e in entities if e.category.value == "UPI_ID"}
+        active_phones = {re.sub(r'\D', '', e.name) for e in entities if getattr(e.category, "value", e.category) == "PHONE"}
+        active_vehicles = {re.sub(r'[^A-Z0-9]', '', e.name.upper()) for e in entities if getattr(e.category, "value", e.category) == "VEHICLE"}
+        active_names = {e.name.lower() for e in entities if getattr(e.category, "value", e.category) == "PERSON"}
+        active_upis = {e.name.lower() for e in entities if getattr(e.category, "value", e.category) == "UPI_ID"}
+
+        # 1. Check Semantic Modus Operandi Similarity via ChromaDB
+        semantic_scores = {}
+        if active_case_mo:
+            vector_hits = self._vector_service.search_similar_cases(active_case_mo, top_k=5)
+            for hit in vector_hits:
+                semantic_scores[hit["case_id"]] = hit["similarity_score"]
 
         best_match = None
         highest_score = 0.0
@@ -54,58 +64,56 @@ class CrossCaseService:
             # Check vehicle collisions
             past_vehs = past_case.get("key_identifiers", {}).get("vehicles", [])
             for v in past_vehs:
-                clean_v = v.upper().replace(' ', '')
+                clean_v = re.sub(r'[^A-Z0-9]', '', v.upper())
                 if clean_v in active_vehicles:
                     score += 25.0
                     overlap_dict["vehicles"].append(v)
 
-            # Check name / alias collisions
+            # Check suspect name / alias collisions
             past_names = past_case.get("key_identifiers", {}).get("suspect_names", [])
             for n in past_names:
-                for a_name in active_names:
-                    if any(part in a_name for part in n.lower().split() if len(part) > 3):
-                        score += 20.0
+                for an in active_names:
+                    if n.lower() in an or an in n.lower():
+                        score += 30.0
                         overlap_dict["suspect_names"].append(n)
                         break
 
-            # Check UPI collisions
+            # Check UPI ID collisions
             past_upis = past_case.get("key_identifiers", {}).get("upi_ids", [])
             for u in past_upis:
                 if u.lower() in active_upis:
-                    score += 15.0
+                    score += 25.0
                     overlap_dict["upi_ids"].append(u)
 
-            # Baseline MO similarity bonus
-            if "customs" in past_case.get("modus_operandi", "").lower() or "digital arrest" in past_case.get("modus_operandi", "").lower():
-                score += 10.0
+            # Incorporate ChromaDB semantic similarity bonus
+            past_cid = past_case.get("case_id")
+            if past_cid in semantic_scores:
+                # Add scaled semantic score
+                score += semantic_scores[past_cid] * 0.25
 
-            if score > highest_score:
+            if score > highest_score and score >= 40.0:
                 highest_score = score
-                best_match = (past_case, min(95.0, score), overlap_dict)
+                best_match = (past_case, overlap_dict, score)
 
-        if best_match and highest_score >= 30.0:
-            past_case, pct, overlap_dict = best_match
-            io_name = past_case.get("investigating_officer", "Inspector Sharma")
-            fir_no = past_case.get("fir_number", "45/2024")
-            ps = past_case.get("police_station", "Cyber Cell Surajpur")
+        if not best_match:
+            return None
 
-            return CrossCaseResemblance(
-                matched_case_id=past_case.get("case_id", "PAST_CASE_01"),
-                matched_fir_number=fir_no,
-                police_station=ps,
-                investigating_officer=io_name,
-                io_contact=past_case.get("io_contact", "+91-98765-43210"),
-                resemblance_percentage=round(pct, 1),
-                overlapping_identifiers=overlap_dict,
-                syndicate_structure=past_case.get("syndicate_structure", ""),
-                recovery_tactics_and_leads=past_case.get("recovery_tactics_and_leads", ""),
-                recommended_action=(
-                    f"This pattern has an {pct:.0f}% resemblance to FIR {fir_no} ({ps}) "
-                    f"handled by {io_name}. Recommend contacting {io_name} for guidance "
-                    f"on their syndicate structure, interrogation leads, and recovery tactics."
-                )
+        matched_case, overlap_dict, raw_score = best_match
+        norm_percentage = min(98.5, max(52.0, raw_score))
+
+        return CrossCaseResemblance(
+            matched_case_id=matched_case.get("case_id", ""),
+            matched_fir_number=matched_case.get("fir_number", ""),
+            police_station=matched_case.get("police_station", ""),
+            investigating_officer=matched_case.get("investigating_officer", ""),
+            io_contact=matched_case.get("io_contact", ""),
+            resemblance_percentage=round(norm_percentage, 1),
+            overlapping_identifiers=overlap_dict,
+            syndicate_structure=matched_case.get("syndicate_structure", ""),
+            recovery_tactics_and_leads=matched_case.get("recovery_tactics_and_leads", ""),
+            recommended_action=(
+                f"High resemblance ({round(norm_percentage, 1)}%) detected with {matched_case.get('fir_number')} "
+                f"handled by {matched_case.get('investigating_officer')}. Direct IO-to-IO liaison recommended "
+                f"to obtain custodial interrogation notes and freeze shared syndicate bank accounts."
             )
-
-        return None
-
-import re
+        )

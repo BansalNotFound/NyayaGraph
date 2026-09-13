@@ -417,9 +417,9 @@ export const CyberLifeDossier: React.FC<CyberLifeDossierProps> = ({
                 DIRECTLY CONNECTED NODES ({directConnections.length})
               </div>
               <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
-                {directConnections.map(({ node, edge, direction }) => (
+                {directConnections.map(({ node, edge, direction }, idx) => (
                   <div
-                    key={edge.id}
+                    key={`${edge.id}-${idx}`}
                     onClick={() => onSelectNode && onSelectNode(node)}
                     className="p-2 bg-white border border-[#DADAD8] hover:border-[#1BA8D1] rounded-[1px] cursor-pointer transition-colors text-left"
                   >

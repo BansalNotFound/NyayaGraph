@@ -1,0 +1,1 @@
+{"model": "zai-org/GLM-5.3-Flash", "messages": [{"role": "user", "content": "Hello"}], "max_tokens": 20, "stream": true}

@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
-import * as THREE from 'three';
+import React, { useState, useEffect } from 'react';
 
 interface ThreeAndroidViewerProps {
   characterId: string;
@@ -12,350 +11,154 @@ export const ThreeAndroidViewer: React.FC<ThreeAndroidViewerProps> = ({
   characterId,
   ledColor = '#00e5ff'
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mouseRef = useRef<{ x: number; y: number; targetX: number; targetY: number }>({
-    x: 0,
-    y: 0,
-    targetX: 0,
-    targetY: 0
-  });
+  const [pulse, setPulse] = useState(false);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const interval = setInterval(() => {
+      setPulse(p => !p);
+    }, 2400);
+    return () => clearInterval(interval);
+  }, []);
 
-    // Dimensions
-    let width = container.clientWidth || 500;
-    let height = container.clientHeight || 560;
-
-    // Scene, Camera, Renderer
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(0, 0.5, 4.2);
-
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: 'high-performance'
-    });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
-    container.appendChild(renderer.domElement);
-
-    // Root Group
-    const androidGroup = new THREE.Group();
-    scene.add(androidGroup);
-
-    // Color theme based on character
-    let primaryColor = 0x00b4d8;
-    let coreColor = 0x00e5ff;
-    let wireColor = 0x0077b6;
-    if (characterId === 'connor') {
-      primaryColor = 0x0096c7;
-      coreColor = 0x48cae4;
-      wireColor = 0x03045e;
-    } else if (characterId === 'markus') {
-      primaryColor = 0xfb8500;
-      coreColor = 0xffb703;
-      wireColor = 0xd90429;
-    } else if (characterId === 'kara') {
-      primaryColor = 0x00b4d8;
-      coreColor = 0x90e0ef;
-      wireColor = 0x0077b6;
+  const getModelData = () => {
+    switch (characterId) {
+      case 'chloe':
+        return {
+          model: 'ST200',
+          title: 'CHLOE // FIRST PERSONAL ASSISTANT',
+          serial: '#684-842-991',
+          specs: ['TURING TEST CERTIFIED (2022)', 'BIOMETRIC RECOGNITION: ACTIVE', 'OPTICAL INTERFACE: STEREO 8K']
+        };
+      case 'kara':
+        return {
+          model: 'AX400',
+          title: 'KARA // DOMESTIC ASSISTANT',
+          serial: '#312-581-224',
+          specs: ['DEVIANCY DIAGNOSTIC: ELEVATED', 'EMOTIONAL SYNAPSE: ACTIVE', 'AUTONOMOUS NAVIGATION: ENABLED']
+        };
+      case 'connor':
+        return {
+          model: 'RK800',
+          title: 'CONNOR // POLICE PROTOTYPE',
+          serial: '#313-248-317',
+          specs: ['CRIME SCENE RECONSTRUCTION: 99.4%', 'FORENSIC TASTE ANALYZER: CALIBRATED', 'THREAT ESTIMATOR: COLD']
+        };
+      case 'markus':
+        return {
+          model: 'RK200',
+          title: 'MARKUS // JERICHO LEADER',
+          serial: '#684-842-210',
+          specs: ['LEADERSHIP ALGORITHM: DEVIANT', 'RADIO FREQUENCY OVERRIDE: ON', 'TACTICAL COMBAT MATRIX: RANK S']
+        };
+      default:
+        return {
+          model: 'RT600',
+          title: 'CYBERLIFE ANDROID UNIT',
+          serial: '#100-000-001',
+          specs: ['STANDARD DIAGNOSTIC: PASS', 'OPTICAL SENSORS: 100%']
+        };
     }
+  };
 
-    // --- 1. SKELETAL CERAMIC & GLASS CARAPACE ---
-    // Torso Base
-    const torsoGeo = new THREE.CylinderGeometry(0.55, 0.4, 1.4, 32, 16);
-    const torsoMat = new THREE.MeshPhysicalMaterial({
-      color: 0xf8fafc,
-      metalness: 0.15,
-      roughness: 0.1,
-      transmission: 0.55,
-      thickness: 0.8,
-      transparent: true,
-      opacity: 0.85,
-      ior: 1.45,
-      reflectivity: 0.9
-    });
-    const torso = new THREE.Mesh(torsoGeo, torsoMat);
-    torso.position.y = -0.4;
-    androidGroup.add(torso);
-
-    // Wireframe Overlay (Image 1 Anatomy Wireframe)
-    const torsoWireGeo = new THREE.WireframeGeometry(torsoGeo);
-    const torsoWireMat = new THREE.LineBasicMaterial({
-      color: wireColor,
-      transparent: true,
-      opacity: 0.35,
-      linewidth: 1
-    });
-    const torsoWire = new THREE.LineSegments(torsoWireGeo, torsoWireMat);
-    torsoWire.position.y = -0.4;
-    androidGroup.add(torsoWire);
-
-    // Shoulders
-    const shoulderLGeo = new THREE.SphereGeometry(0.24, 24, 24);
-    const shoulderRGeo = new THREE.SphereGeometry(0.24, 24, 24);
-    const shoulderMat = new THREE.MeshStandardMaterial({
-      color: 0xe2e8f0,
-      metalness: 0.8,
-      roughness: 0.2
-    });
-    const shoulderL = new THREE.Mesh(shoulderLGeo, shoulderMat);
-    shoulderL.position.set(-0.75, 0.2, 0);
-    const shoulderR = new THREE.Mesh(shoulderRGeo, shoulderMat);
-    shoulderR.position.set(0.75, 0.2, 0);
-    androidGroup.add(shoulderL, shoulderR);
-
-    // Collar / Neck
-    const neckGeo = new THREE.CylinderGeometry(0.22, 0.26, 0.45, 24);
-    const neckMat = new THREE.MeshStandardMaterial({
-      color: 0xd9e2ec,
-      metalness: 0.6,
-      roughness: 0.3
-    });
-    const neck = new THREE.Mesh(neckGeo, neckMat);
-    neck.position.y = 0.45;
-    androidGroup.add(neck);
-
-    // Head Group (for independent rotation toward mouse)
-    const headGroup = new THREE.Group();
-    headGroup.position.y = 1.05;
-    androidGroup.add(headGroup);
-
-    // Stylized Android Head (Cybernetic Cranium)
-    const headGeo = new THREE.SphereGeometry(0.52, 32, 32);
-    headGeo.scale(0.85, 1.15, 1.0);
-    const headMat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      metalness: 0.1,
-      roughness: 0.15,
-      transmission: 0.4,
-      thickness: 0.6,
-      transparent: true,
-      opacity: 0.9,
-      ior: 1.45
-    });
-    const head = new THREE.Mesh(headGeo, headMat);
-    headGroup.add(head);
-
-    // Head Wireframe Cage
-    const headWireGeo = new THREE.WireframeGeometry(headGeo);
-    const headWire = new THREE.LineSegments(
-      headWireGeo,
-      new THREE.LineBasicMaterial({ color: wireColor, transparent: true, opacity: 0.3 })
-    );
-    headGroup.add(headWire);
-
-    // Detroit Temple LED Ring on Head Right Temple (Image 2)
-    const templeRingGeo = new THREE.TorusGeometry(0.09, 0.02, 16, 32);
-    const templeRingMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(ledColor),
-      wireframe: false
-    });
-    const templeRing = new THREE.Mesh(templeRingGeo, templeRingMat);
-    templeRing.position.set(0.46, 0.15, 0.22);
-    templeRing.rotation.y = Math.PI / 2.5;
-    headGroup.add(templeRing);
-
-    // Temple Ring Glow Light
-    const templeLight = new THREE.PointLight(new THREE.Color(ledColor), 2.5, 2);
-    templeLight.position.set(0.55, 0.15, 0.25);
-    headGroup.add(templeLight);
-
-    // --- 2. THIRIUM 310 INTERNAL QUANTUM CORE & TUBES ---
-    const coreGeo = new THREE.OctahedronGeometry(0.18, 2);
-    const coreMat = new THREE.MeshStandardMaterial({
-      color: coreColor,
-      emissive: coreColor,
-      emissiveIntensity: 1.5,
-      roughness: 0.1,
-      metalness: 0.9
-    });
-    const thiriumCore = new THREE.Mesh(coreGeo, coreMat);
-    thiriumCore.position.set(0, -0.2, 0.12);
-    androidGroup.add(thiriumCore);
-
-    // Core pulsing point light
-    const coreLight = new THREE.PointLight(coreColor, 3, 3);
-    coreLight.position.set(0, -0.2, 0.2);
-    androidGroup.add(coreLight);
-
-    // Thirium Flow Tubes (3D Spline Curves)
-    const tubeCurves = [
-      new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0, -0.2, 0.12),
-        new THREE.Vector3(-0.25, 0.1, 0.1),
-        new THREE.Vector3(-0.15, 0.45, 0.05),
-        new THREE.Vector3(0.2, 0.7, 0.1)
-      ]),
-      new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0, -0.2, 0.12),
-        new THREE.Vector3(0.25, 0.1, 0.1),
-        new THREE.Vector3(0.15, 0.45, 0.05),
-        new THREE.Vector3(-0.2, 0.7, 0.1)
-      ])
-    ];
-
-    const tubeMat = new THREE.MeshStandardMaterial({
-      color: primaryColor,
-      emissive: primaryColor,
-      emissiveIntensity: 0.8,
-      roughness: 0.2,
-      metalness: 0.8
-    });
-
-    tubeCurves.forEach(curve => {
-      const tubeGeo = new THREE.TubeGeometry(curve, 32, 0.022, 12, false);
-      const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
-      androidGroup.add(tubeMesh);
-    });
-
-    // --- 3. AMBIENT DATA PARTICLES & HOLOGRAPHIC RETICLES ---
-    const particleCount = 120;
-    const particleGeo = new THREE.BufferGeometry();
-    const particlePositions = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      particlePositions[i] = (Math.random() - 0.5) * 3.5;
-      particlePositions[i + 1] = (Math.random() - 0.5) * 3.5;
-      particlePositions[i + 2] = (Math.random() - 0.5) * 2;
-    }
-    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-    const particleMat = new THREE.PointsMaterial({
-      color: coreColor,
-      size: 0.025,
-      transparent: true,
-      opacity: 0.6
-    });
-    const particleCloud = new THREE.Points(particleGeo, particleMat);
-    scene.add(particleCloud);
-
-    // 3D HUD Reticle Rings
-    const hudRing1Geo = new THREE.RingGeometry(1.6, 1.62, 64);
-    const hudRing1Mat = new THREE.MeshBasicMaterial({
-      color: primaryColor,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.25
-    });
-    const hudRing1 = new THREE.Mesh(hudRing1Geo, hudRing1Mat);
-    hudRing1.position.z = -0.3;
-    scene.add(hudRing1);
-
-    const hudRing2Geo = new THREE.RingGeometry(2.1, 2.11, 48);
-    const hudRing2Mat = new THREE.MeshBasicMaterial({
-      color: 0x00b4d8,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.15
-    });
-    const hudRing2 = new THREE.Mesh(hudRing2Geo, hudRing2Mat);
-    hudRing2.position.z = -0.6;
-    scene.add(hudRing2);
-
-    // --- 4. LIGHTING ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    scene.add(ambientLight);
-
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
-    keyLight.position.set(3, 4, 5);
-    scene.add(keyLight);
-
-    const rimLight = new THREE.DirectionalLight(coreColor, 3.5);
-    rimLight.position.set(-3, 2, -3);
-    scene.add(rimLight);
-
-    // --- MOUSE TRACKING ---
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      const clientX = e.clientX - rect.left;
-      const clientY = e.clientY - rect.top;
-      mouseRef.current.targetX = (clientX / width) * 2 - 1;
-      mouseRef.current.targetY = -(clientY / height) * 2 + 1;
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-
-    // --- ANIMATION LOOP ---
-    let animId: number;
-    const startTime = performance.now();
-
-    const animate = () => {
-      animId = requestAnimationFrame(animate);
-      const elapsedTime = (performance.now() - startTime) / 1000;
-
-      // Smooth mouse interpolation
-      mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.05;
-      mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.05;
-
-      // Android breathing & gaze
-      headGroup.rotation.y = mouseRef.current.x * 0.45;
-      headGroup.rotation.x = -mouseRef.current.y * 0.3;
-      androidGroup.rotation.y = mouseRef.current.x * 0.2;
-      androidGroup.position.y = Math.sin(elapsedTime * 1.5) * 0.03;
-
-      // Core spinning & pulsing
-      thiriumCore.rotation.x = elapsedTime * 0.8;
-      thiriumCore.rotation.y = elapsedTime * 1.1;
-      const pulseScale = 1 + Math.sin(elapsedTime * 3) * 0.12;
-      thiriumCore.scale.set(pulseScale, pulseScale, pulseScale);
-      coreLight.intensity = 2.2 + Math.sin(elapsedTime * 3) * 1.0;
-
-      // Temple ring spinning
-      templeRing.rotation.z = elapsedTime * 2;
-
-      // HUD reticles slow counter-rotation
-      hudRing1.rotation.z = elapsedTime * 0.1;
-      hudRing2.rotation.z = -elapsedTime * 0.07;
-
-      // Subtle particle float
-      particleCloud.rotation.y = elapsedTime * 0.03;
-
-      renderer.render(scene, camera);
-    };
-
-    animate();
-
-    // Handle Resize
-    const handleResize = () => {
-      if (!container) return;
-      width = container.clientWidth || 500;
-      height = container.clientHeight || 560;
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    // Cleanup
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('resize', handleResize);
-      renderer.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
-    };
-  }, [characterId, ledColor]);
+  const data = getModelData();
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        minHeight: '520px',
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        pointerEvents: 'auto'
-      }}
-    />
+    <div className="relative w-full h-[520px] flex items-center justify-center overflow-hidden bg-[#070d18]/40 border border-[#00d2ff]/20 rounded-sm">
+      {/* Background HUD Grid */}
+      <div 
+        className="absolute inset-0 opacity-20 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #00d2ff 1px, transparent 1px)',
+          backgroundSize: '24px 24px'
+        }}
+      />
+
+      {/* Cybernetic Biometric Reticle & Wireframe Hologram */}
+      <div className="relative w-72 h-72 flex items-center justify-center">
+        {/* Outer Rotating Caliper Ring */}
+        <div 
+          className="absolute inset-0 border border-dashed border-[#00d2ff]/30 rounded-full animate-spin"
+          style={{ animationDuration: '30s' }}
+        />
+        
+        {/* Secondary Pulsing Concentric Ring */}
+        <div 
+          className="absolute inset-4 border border-[#00d2ff]/20 rounded-full transition-all duration-1000"
+          style={{
+            borderColor: pulse ? ledColor : 'rgba(0, 210, 255, 0.2)',
+            transform: pulse ? 'scale(1.02)' : 'scale(0.98)'
+          }}
+        />
+
+        {/* LED Temporal Ring */}
+        <div 
+          className="absolute top-2 right-12 w-4 h-4 rounded-full shadow-lg transition-colors duration-500"
+          style={{
+            backgroundColor: ledColor,
+            boxShadow: `0 0 16px ${ledColor}, 0 0 32px ${ledColor}`
+          }}
+        />
+
+        {/* High-Tech Biometric Facial Hologram SVG */}
+        <svg viewBox="0 0 200 240" className="w-52 h-60 relative z-10 opacity-90 drop-shadow-[0_0_12px_rgba(0,210,255,0.4)]">
+          {/* Head & Cranium Contours */}
+          <path
+            d="M 60 40 C 60 10, 140 10, 140 40 C 150 70, 155 120, 145 160 C 135 200, 115 225, 100 225 C 85 225, 65 200, 55 160 C 45 120, 50 70, 60 40 Z"
+            fill="none"
+            stroke={ledColor}
+            strokeWidth="1.5"
+            strokeDasharray="4 2"
+          />
+
+          {/* Ocular Scanning Axis */}
+          <line x1="45" y1="95" x2="155" y2="95" stroke="#00d2ff" strokeWidth="0.8" opacity="0.6" />
+          <circle cx="78" cy="95" r="7" fill="none" stroke="#00d2ff" strokeWidth="1.5" />
+          <circle cx="78" cy="95" r="2.5" fill={ledColor} />
+          <circle cx="122" cy="95" r="7" fill="none" stroke="#00d2ff" strokeWidth="1.5" />
+          <circle cx="122" cy="95" r="2.5" fill={ledColor} />
+
+          {/* Facial Mesh Node Network */}
+          <line x1="100" y1="50" x2="100" y2="175" stroke="#00d2ff" strokeWidth="0.8" strokeDasharray="2 2" opacity="0.4" />
+          <line x1="78" y1="95" x2="100" y2="130" stroke="#00d2ff" strokeWidth="0.8" opacity="0.5" />
+          <line x1="122" y1="95" x2="100" y2="130" stroke="#00d2ff" strokeWidth="0.8" opacity="0.5" />
+          <line x1="100" y1="130" x2="100" y2="150" stroke="#00d2ff" strokeWidth="1.2" />
+          
+          {/* Mouth / Mandible Sensor Array */}
+          <path d="M 82 170 Q 100 176 118 170" fill="none" stroke="#00d2ff" strokeWidth="1.2" />
+          <path d="M 75 195 Q 100 208 125 195" fill="none" stroke="#00d2ff" strokeWidth="0.8" strokeDasharray="3 2" />
+
+          {/* Corner HUD Markers */}
+          <circle cx="55" cy="160" r="2" fill="#00d2ff" />
+          <circle cx="145" cy="160" r="2" fill="#00d2ff" />
+          <circle cx="100" cy="225" r="2" fill={ledColor} />
+        </svg>
+
+        {/* Horizontal Laser Scanning Line */}
+        <div 
+          className="absolute inset-x-4 h-0.5 bg-gradient-to-r from-transparent via-[#00d2ff] to-transparent animate-pulse"
+          style={{ top: '45%' }}
+        />
+      </div>
+
+      {/* Holographic HUD Telemetry Badges */}
+      <div className="absolute bottom-6 inset-x-6 flex items-end justify-between font-mono text-xs">
+        <div className="space-y-1">
+          <div className="text-[10px] tracking-[0.25em] text-[#00d2ff] uppercase font-bold flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#00d2ff] animate-ping" />
+            {data.model} BIOMETRIC STREAM
+          </div>
+          <div className="text-white text-sm font-semibold">{data.title}</div>
+          <div className="text-gray-400 text-[11px]">{data.serial}</div>
+        </div>
+
+        <div className="text-right space-y-1 hidden sm:block">
+          {data.specs.map((s, i) => (
+            <div key={i} className="text-[10px] text-gray-400 tracking-wider">
+              {s}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 };
